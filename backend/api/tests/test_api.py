@@ -126,3 +126,11 @@ class TestAPIEndpoints:
         assert response["Content-Type"] == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         assert 'attachment; filename="aircraft_materials_export.xlsx"' in response["Content-Disposition"]
         assert len(response.content) > 0
+
+    def test_etl_clear_api(self, api_client, seeded_db):
+        assert Order.objects.count() > 0
+        response = api_client.post("/api/etl/clear/")
+        assert response.status_code == 200
+        assert Order.objects.count() == 0
+        assert Material.objects.count() == 0
+        assert Aircraft.objects.count() == 0
