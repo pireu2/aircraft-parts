@@ -174,7 +174,7 @@ class ETLImportView(APIView):
             return Response(
                 {
                     "status": "success",
-                    "message": f"successfully synced database from {source_name}",
+                    "message": f"successfully imported database from {source_name}",
                     "source": source_name,
                     "diff": diff,
                 },
@@ -199,3 +199,17 @@ class ETLExportView(APIView):
         )
         response["Content-Disposition"] = 'attachment; filename="aircraft_materials_export.xlsx"'
         return response
+
+
+class ETLClearView(APIView):
+    def post(self, request, *args, **kwargs):
+        Order.objects.all().delete()
+        Material.objects.all().delete()
+        Aircraft.objects.all().delete()
+        return Response(
+            {
+                "status": "success",
+                "message": "all data deleted successfully",
+            },
+            status=status.HTTP_200_OK,
+        )
