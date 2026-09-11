@@ -67,4 +67,5 @@ Thumbs.db
 *.pdf
 *.csv
 *.xlsx
+!aircraft_materials.xlsx
 GEMINI.md
