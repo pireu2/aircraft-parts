@@ -1,6 +1,6 @@
 import uuid
 from django.conf import settings
-from django.db.models import Q, Sum, Count
+from django.db.models import Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from rest_framework import viewsets, status
@@ -8,7 +8,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Aircraft, Material, Order
+from .models import Aircraft, Material, Order, ImportLog
 from .serializers import (
     AircraftSerializer,
     AircraftDetailSerializer,
@@ -16,6 +16,7 @@ from .serializers import (
     MaterialDetailSerializer,
     OrderListSerializer,
     OrderWriteSerializer,
+    ImportLogSerializer,
 )
 from .services.etl import ETLService
 
@@ -55,38 +56,6 @@ class OrderViewSet(viewsets.ModelViewSet):
             qs = qs.order_by(ordering)
 
         return qs
-
-    @action(detail=False, methods=["get"], url_path="summary")
-    def summary(self, request):
-        total_orders = Order.objects.count()
-
-        status_counts_raw = dict(
-            Order.objects.values("status")
-            .annotate(count=Count("id"))
-            .values_list("status", "count")
-        )
-        status_counts = {
-            "Arrived": status_counts_raw.get("Arrived", 0),
-            "Pending": status_counts_raw.get("Pending", 0),
-            "Requested": status_counts_raw.get("Requested", 0),
-        }
-
-        # total weight of materials in orders
-        total_weight_agg = Order.objects.aggregate(total=Sum("material__weight"))
-        total_weight = float(total_weight_agg["total"] or 0.0)
-
-        total_aircraft = Aircraft.objects.count()
-        total_materials = Material.objects.count()
-
-        return Response(
-            {
-                "total_orders": total_orders,
-                "status_counts": status_counts,
-                "total_weight": round(total_weight, 2),
-                "total_aircraft": total_aircraft,
-                "total_materials": total_materials,
-            }
-        )
 
 
 class AircraftViewSet(viewsets.ReadOnlyModelViewSet):
@@ -171,6 +140,22 @@ class ETLImportView(APIView):
 
         try:
             diff = ETLService.import_excel(source, sync_delete=True)
+            total_created = sum(diff[k]["created"] for k in diff)
+            total_updated = sum(diff[k]["updated"] for k in diff)
+            total_deleted = sum(diff[k]["deleted"] for k in diff)
+            total_records = sum(diff[k]["total"] for k in diff)
+
+            ImportLog.objects.create(
+                action=ImportLog.Action.IMPORT,
+                status=ImportLog.Status.SUCCESS,
+                file_name=source_name,
+                diff=diff,
+                total_created=total_created,
+                total_updated=total_updated,
+                total_deleted=total_deleted,
+                total_records=total_records,
+            )
+
             return Response(
                 {
                     "status": "success",
@@ -181,6 +166,12 @@ class ETLImportView(APIView):
                 status=status.HTTP_200_OK,
             )
         except Exception as e:
+            ImportLog.objects.create(
+                action=ImportLog.Action.IMPORT,
+                status=ImportLog.Status.FAILED,
+                file_name=source_name,
+                error_message=str(e),
+            )
             return Response(
                 {
                     "status": "error",
@@ -203,9 +194,32 @@ class ETLExportView(APIView):
 
 class ETLClearView(APIView):
     def post(self, request, *args, **kwargs):
+        orders_deleted = Order.objects.count()
+        materials_deleted = Material.objects.count()
+        aircraft_deleted = Aircraft.objects.count()
+        total_deleted = orders_deleted + materials_deleted + aircraft_deleted
+
         Order.objects.all().delete()
         Material.objects.all().delete()
         Aircraft.objects.all().delete()
+
+        diff = {
+            "aircraft": {"created": 0, "updated": 0, "deleted": aircraft_deleted, "total": 0},
+            "materials": {"created": 0, "updated": 0, "deleted": materials_deleted, "total": 0},
+            "orders": {"created": 0, "updated": 0, "deleted": orders_deleted, "total": 0},
+        }
+
+        ImportLog.objects.create(
+            action=ImportLog.Action.CLEAR,
+            status=ImportLog.Status.SUCCESS,
+            file_name="Database Wipe",
+            diff=diff,
+            total_created=0,
+            total_updated=0,
+            total_deleted=total_deleted,
+            total_records=0,
+        )
+
         return Response(
             {
                 "status": "success",
@@ -213,3 +227,8 @@ class ETLClearView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+class ImportLogViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = ImportLog.objects.all().order_by("-created_at")
+    serializer_class = ImportLogSerializer

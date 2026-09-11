@@ -58,16 +58,18 @@ export interface Order {
   status: OrderStatus;
 }
 
-export interface OrdersSummary {
-  total_orders: number;
-  status_counts: {
-    Arrived: number;
-    Pending: number;
-    Requested: number;
-  };
-  total_weight: number;
-  total_aircraft: number;
-  total_materials: number;
+export interface ImportLog {
+  id: string;
+  action: "import" | "clear";
+  status: "success" | "failed";
+  file_name?: string | null;
+  error_message?: string | null;
+  diff?: ETLDiff | Record<string, any>;
+  total_created: number;
+  total_updated: number;
+  total_deleted: number;
+  total_records: number;
+  created_at: string;
 }
 
 export interface ETLDiffEntity {

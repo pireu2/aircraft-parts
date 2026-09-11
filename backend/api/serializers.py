@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Aircraft, Material, Order
+from .models import Aircraft, Material, Order, ImportLog
 
 
 class AircraftSerializer(serializers.ModelSerializer):
@@ -149,4 +149,22 @@ class MaterialDetailSerializer(serializers.ModelSerializer):
             "weight",
             "total_orders",
             "orders",
+        ]
+
+
+class ImportLogSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ImportLog
+        fields = [
+            "id",
+            "action",
+            "status",
+            "file_name",
+            "error_message",
+            "diff",
+            "total_created",
+            "total_updated",
+            "total_deleted",
+            "total_records",
+            "created_at",
         ]

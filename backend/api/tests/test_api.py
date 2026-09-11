@@ -1,7 +1,7 @@
 import pytest
 from django.conf import settings
 from rest_framework.test import APIClient
-from api.models import Aircraft, Material, Order
+from api.models import Aircraft, Material, Order, ImportLog
 from api.services.etl import ETLService
 
 
@@ -58,19 +58,28 @@ class TestAPIEndpoints:
         for item in data:
             assert item["aircraft"]["model"] == "Batplane"
 
-    def test_orders_summary(self, api_client, seeded_db):
-        response = api_client.get("/api/orders/summary/")
-        assert response.status_code == 200
-        data = response.json()
+    def test_import_logs_endpoint(self, api_client):
+        # initially empty
+        res_empty = api_client.get("/api/import-logs/")
+        assert res_empty.status_code == 200
+        assert len(res_empty.json()) == 0
 
-        assert data["total_orders"] == 10
-        assert "status_counts" in data
-        assert data["status_counts"]["Arrived"] == 5
-        assert data["status_counts"]["Pending"] == 2
-        assert data["status_counts"]["Requested"] == 3
-        assert data["total_weight"] > 0
-        assert data["total_aircraft"] == 3
-        assert data["total_materials"] == 20
+        # create a test log
+        ImportLog.objects.create(
+            action=ImportLog.Action.IMPORT,
+            status=ImportLog.Status.SUCCESS,
+            file_name="test_sheet.xlsx",
+            total_created=5,
+            total_records=5,
+        )
+
+        res = api_client.get("/api/import-logs/")
+        assert res.status_code == 200
+        logs = res.json()
+        assert len(logs) == 1
+        assert logs[0]["action"] == "import"
+        assert logs[0]["file_name"] == "test_sheet.xlsx"
+        assert logs[0]["total_created"] == 5
 
     def test_aircraft_detail(self, api_client, seeded_db):
         response = api_client.get("/api/aircraft/CA33SN12345/")
@@ -120,6 +129,13 @@ class TestAPIEndpoints:
         assert data["diff"]["materials"]["created"] == 20
         assert data["diff"]["orders"]["created"] == 10
 
+        # verify import log created
+        log = ImportLog.objects.filter(action=ImportLog.Action.IMPORT).first()
+        assert log is not None
+        assert log.status == ImportLog.Status.SUCCESS
+        assert log.total_created == 33
+        assert log.total_records == 33
+
     def test_etl_export_api(self, api_client, seeded_db):
         response = api_client.get("/api/etl/export/")
         assert response.status_code == 200
@@ -134,3 +150,10 @@ class TestAPIEndpoints:
         assert Order.objects.count() == 0
         assert Material.objects.count() == 0
         assert Aircraft.objects.count() == 0
+
+        # verify clear log created
+        log = ImportLog.objects.filter(action=ImportLog.Action.CLEAR).first()
+        assert log is not None
+        assert log.status == ImportLog.Status.SUCCESS
+        assert log.total_deleted == 33
+        assert log.total_records == 0

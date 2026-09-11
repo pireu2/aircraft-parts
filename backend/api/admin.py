@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Aircraft, Material, Order
+from .models import Aircraft, Material, Order, ImportLog
 
 
 @admin.register(Aircraft)
@@ -25,3 +25,10 @@ class OrderAdmin(admin.ModelAdmin):
         "material__part_number",
         "material__name",
     )
+
+
+@admin.register(ImportLog)
+class ImportLogAdmin(admin.ModelAdmin):
+    list_display = ("created_at", "action", "status", "file_name", "total_created", "total_updated", "total_deleted", "total_records")
+    list_filter = ("action", "status")
+    search_fields = ("file_name", "error_message")

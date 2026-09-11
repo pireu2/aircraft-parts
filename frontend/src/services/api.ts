@@ -1,4 +1,4 @@
-import { Order, OrdersSummary, AircraftDetail, MaterialDetail, ETLResponse } from "../types";
+import { Order, ImportLog, AircraftDetail, MaterialDetail, ETLResponse } from "../types";
 
 const API_BASE = "http://localhost:8000/api";
 
@@ -15,9 +15,9 @@ export const api = {
     return res.json();
   },
 
-  async getSummary(): Promise<OrdersSummary> {
-    const res = await fetch(`${API_BASE}/orders/summary/`);
-    if (!res.ok) throw new Error(`failed to fetch summary: ${res.statusText}`);
+  async getImportLogs(): Promise<ImportLog[]> {
+    const res = await fetch(`${API_BASE}/import-logs/`);
+    if (!res.ok) throw new Error(`failed to fetch import logs: ${res.statusText}`);
     return res.json();
   },
 

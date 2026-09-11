@@ -1,16 +1,16 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { Navbar } from "./components/Navbar";
-import { SummaryCards } from "./components/SummaryCards";
+import { ImportActivity } from "./components/ImportActivity";
 import { OrdersTable } from "./components/OrdersTable";
 import { AircraftModal } from "./components/AircraftModal";
 import { MaterialModal } from "./components/MaterialModal";
 import { ImportModal } from "./components/ImportModal";
-import { Order, OrdersSummary } from "./types";
+import { Order, ImportLog } from "./types";
 import { api } from "./services/api";
 
 export const App: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
-  const [summary, setSummary] = useState<OrdersSummary | null>(null);
+  const [importLogs, setImportLogs] = useState<ImportLog[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState<boolean>(false);
@@ -24,12 +24,12 @@ export const App: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const [ordersData, summaryData] = await Promise.all([
+      const [ordersData, logsData] = await Promise.all([
         api.getOrders(),
-        api.getSummary(),
+        api.getImportLogs(),
       ]);
       setOrders(ordersData);
-      setSummary(summaryData);
+      setImportLogs(logsData);
     } catch (err: any) {
       setError(err.message || "Failed to connect to API backend");
     } finally {
@@ -80,9 +80,9 @@ export const App: React.FC = () => {
           </div>
         ) : null}
 
-        {/* metrics summary */}
+        {/* import activity */}
         <div className="mb-6">
-          <SummaryCards summary={summary} loading={loading} />
+          <ImportActivity logs={importLogs} loading={loading} />
         </div>
 
         {/* orders table */}

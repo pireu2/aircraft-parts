@@ -5,6 +5,7 @@ from .views import (
     OrderViewSet,
     AircraftViewSet,
     MaterialViewSet,
+    ImportLogViewSet,
     ETLImportView,
     ETLExportView,
     ETLClearView,
@@ -14,6 +15,7 @@ router = DefaultRouter()
 router.register(r"orders", OrderViewSet, basename="order")
 router.register(r"aircraft", AircraftViewSet, basename="aircraft")
 router.register(r"materials", MaterialViewSet, basename="material")
+router.register(r"import-logs", ImportLogViewSet, basename="import-log")
 
 urlpatterns = [
     path("etl/import/", ETLImportView.as_view(), name="etl-import"),
